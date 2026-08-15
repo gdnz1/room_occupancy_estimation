@@ -1,9 +1,10 @@
 """
-Data loading and quality validation module for Room Occupancy Estimation.
+Data loading, quality validation, and temporal splitting module for Room Occupancy Estimation.
 """
 from typing import Dict, Any, Tuple
 import pandas as pd
 import numpy as np
+from sklearn.model_selection import train_test_split
 from src import config
 
 
@@ -106,7 +107,58 @@ def print_quality_report(summary: Dict[str, Any]) -> None:
     print("=" * 60)
 
 
+def temporal_train_test_split(
+    df: pd.DataFrame,
+    train_ratio: float = config.TRAIN_SPLIT_RATIO,
+    save_to_disk: bool = True
+) -> Tuple[pd.DataFrame, pd.DataFrame]:
+    """
+    Split dataset chronologically based on Date and Time.
+    First 80% -> Train (older observations)
+    Last 20% -> Test (newer observations)
+    """
+    # Ensure chronological order
+    df_sorted = df.copy()
+    df_sorted["_dt_sort_key"] = pd.to_datetime(df_sorted["Date"] + " " + df_sorted["Time"], format="%Y/%m/%d %H:%M:%S")
+    df_sorted = df_sorted.sort_values("_dt_sort_key").reset_index(drop=True)
+    df_sorted = df_sorted.drop(columns=["_dt_sort_key"])
+    
+    split_idx = int(len(df_sorted) * train_ratio)
+    train_df = df_sorted.iloc[:split_idx].copy().reset_index(drop=True)
+    test_df = df_sorted.iloc[split_idx:].copy().reset_index(drop=True)
+    
+    if save_to_disk:
+        train_path = config.PROCESSED_DATA_DIR / "train_temporal.csv"
+        test_path = config.PROCESSED_DATA_DIR / "test_temporal.csv"
+        train_df.to_csv(train_path, index=False)
+        test_df.to_csv(test_path, index=False)
+        print(f"Saved temporal train split ({len(train_df):,} rows) to: {train_path}")
+        print(f"Saved temporal test split ({len(test_df):,} rows) to: {test_path}")
+        
+    return train_df, test_df
+
+
+def stratified_random_split(
+    df: pd.DataFrame,
+    train_ratio: float = config.TRAIN_SPLIT_RATIO,
+    random_state: int = config.RANDOM_STATE
+) -> Tuple[pd.DataFrame, pd.DataFrame]:
+    """
+    Perform standard stratified random split (for auxiliary data leakage comparison).
+    """
+    train_df, test_df = train_test_split(
+        df,
+        train_size=train_ratio,
+        stratify=df[config.TARGET_COL],
+        random_state=random_state
+    )
+    return train_df.reset_index(drop=True), test_df.reset_index(drop=True)
+
+
 if __name__ == "__main__":
-    df = load_raw_data()
-    report = inspect_data_quality(df)
-    print_quality_report(report)
+    from src.feature_engineering import build_full_feature_dataset
+    raw = load_raw_data()
+    processed = build_full_feature_dataset(raw)
+    tr, te = temporal_train_test_split(processed)
+    print(f"\nTrain Class Distribution:\n{tr[config.TARGET_COL].value_counts(normalize=True).round(4)*100}")
+    print(f"\nTest Class Distribution:\n{te[config.TARGET_COL].value_counts(normalize=True).round(4)*100}")
