@@ -1,7 +1,7 @@
 """
 Visualization module for generating publication-quality figures and plots for Room Occupancy Estimation.
 """
-from typing import Optional, List
+from typing import Optional, List, Dict
 import matplotlib.pyplot as plt
 import seaborn as sns
 import pandas as pd
@@ -42,7 +42,7 @@ def plot_class_distribution(df: pd.DataFrame, save_path: Optional[str] = None) -
         pct = (height / total) * 100
         ax.annotate(f"{height:,}\n({pct:.1f}%)",
                     xy=(bar.get_x() + bar.get_width() / 2, height),
-                    xytext=(0, 4),  # 4 points vertical offset
+                    xytext=(0, 4),
                     textcoords="offset points",
                     ha="center", va="bottom", fontsize=10, fontweight="bold")
         
@@ -63,7 +63,6 @@ def plot_sensor_distributions(df: pd.DataFrame, save_path: Optional[str] = None)
     """
     fig, axes = plt.subplots(2, 3, figsize=(15, 9), dpi=300)
     
-    # Sensors to showcase representative modalities
     modality_specs = [
         ("S1_Temp", "Temperature (°C) - Sensor 1", "#e74c3c"),
         ("S1_Light", "Light (Lux) - Sensor 1", "#f39c12"),
@@ -172,29 +171,23 @@ def plot_temporal_trend(df: pd.DataFrame, sample_days: int = 2, save_path: Optio
     """
     Plot time series of CO2, Light, and Occupancy over a representative time window.
     """
-    # Create datetime index
     df_temp = df.copy()
     df_temp["Datetime"] = pd.to_datetime(df_temp["Date"] + " " + df_temp["Time"], format="%Y/%m/%d %H:%M:%S")
     df_temp = df_temp.sort_values("Datetime").reset_index(drop=True)
-    
-    # Select first ~2 days or ~5000 points for clear visual resolution
     subset = df_temp.iloc[:3500].copy()
     
     fig, axes = plt.subplots(3, 1, figsize=(15, 9), dpi=300, sharex=True)
     
-    # 1. Occupancy Count
     axes[0].plot(subset["Datetime"], subset[config.TARGET_COL], color="#2b5c8f", lw=1.8, label="Occupancy Count")
     axes[0].set_ylabel("Occupancy (Persons)", fontweight="bold", fontsize=10)
     axes[0].set_title("Temporal Dynamics: Occupancy vs. Environmental Sensors", fontweight="bold", fontsize=13, pad=10)
     axes[0].set_yticks([0, 1, 2, 3])
     axes[0].legend(loc="upper right")
     
-    # 2. Light Sensor (S1_Light)
     axes[1].plot(subset["Datetime"], subset["S1_Light"], color="#d95f02", lw=1.5, label="Light Intensity (S1_Light)")
     axes[1].set_ylabel("Light (Lux)", fontweight="bold", fontsize=10)
     axes[1].legend(loc="upper right")
     
-    # 3. CO2 Concentration (S5_CO2)
     axes[2].plot(subset["Datetime"], subset["S5_CO2"], color="#27ae60", lw=1.8, label="CO2 Concentration (ppm)")
     axes[2].set_ylabel("CO2 (ppm)", fontweight="bold", fontsize=10)
     axes[2].set_xlabel("Timestamp", fontweight="bold", fontsize=10)
@@ -205,6 +198,142 @@ def plot_temporal_trend(df: pd.DataFrame, sample_days: int = 2, save_path: Optio
         
     plt.tight_layout()
     out_file = save_path or (config.FIGURES_DIR / "05_temporal_trend.png")
+    plt.savefig(out_file, dpi=300, bbox_inches="tight")
+    plt.close()
+    print(f"Saved: {out_file}")
+
+
+def plot_confusion_matrices(cm_dict: Dict[str, np.ndarray], save_path: Optional[str] = None) -> None:
+    """
+    Plot 2x2 multi-panel confusion matrices for key benchmark models.
+    """
+    fig, axes = plt.subplots(2, 2, figsize=(13, 11), dpi=300)
+    model_keys = list(cm_dict.keys())[:4]
+    
+    for ax, name in zip(axes.flatten(), model_keys):
+        cm = cm_dict[name]
+        sns.heatmap(
+            cm,
+            annot=True,
+            fmt="d",
+            cmap="Blues",
+            cbar=False,
+            ax=ax,
+            xticklabels=["0", "1", "2", "3"],
+            yticklabels=["0", "1", "2", "3"],
+            annot_kws={"size": 11, "weight": "bold"}
+        )
+        ax.set_title(f"Confusion Matrix: {name}", fontsize=12, fontweight="bold", pad=8)
+        ax.set_xlabel("Predicted Label (Occupancy)", fontsize=10)
+        ax.set_ylabel("True Label (Occupancy)", fontsize=10)
+        
+    plt.suptitle("Model Prediction Behavior Across Occupancy Classes (Test Set)", fontsize=14, fontweight="bold", y=1.01)
+    plt.tight_layout()
+    
+    out_file = save_path or (config.FIGURES_DIR / "06_confusion_matrices.png")
+    plt.savefig(out_file, dpi=300, bbox_inches="tight")
+    plt.close()
+    print(f"Saved: {out_file}")
+
+
+def plot_feature_importance(
+    feature_names: List[str],
+    importances: np.ndarray,
+    model_name: str = "Decision Tree (All Sensors)",
+    save_path: Optional[str] = None
+) -> None:
+    """
+    Plot horizontal bar chart of feature importances sorted descending.
+    """
+    feat_df = pd.DataFrame({
+        "Feature": feature_names,
+        "Importance": importances
+    }).sort_values("Importance", ascending=True)
+    
+    fig, ax = plt.subplots(figsize=(10, 7), dpi=300)
+    bars = ax.barh(feat_df["Feature"], feat_df["Importance"], color="#2b5c8f", edgecolor="black", alpha=0.85)
+    
+    for bar in bars:
+        width = bar.get_width()
+        if width > 0.005:
+            ax.annotate(f"{width:.3f}",
+                        xy=(width, bar.get_y() + bar.get_height() / 2),
+                        xytext=(4, 0),
+                        textcoords="offset points",
+                        va="center", ha="left", fontsize=9, fontweight="bold")
+            
+    ax.set_title(f"Feature Importance Ranking: {model_name}", fontsize=13, fontweight="bold", pad=12)
+    ax.set_xlabel("Relative Importance (Gini / MDI)", fontsize=11, labelpad=8)
+    ax.set_xlim(0, max(feat_df["Importance"]) * 1.15)
+    plt.tight_layout()
+    
+    out_file = save_path or (config.FIGURES_DIR / "07_feature_importance.png")
+    plt.savefig(out_file, dpi=300, bbox_inches="tight")
+    plt.close()
+    print(f"Saved: {out_file}")
+
+
+def plot_feature_set_ablation(ablation_df: pd.DataFrame, save_path: Optional[str] = None) -> None:
+    """
+    Plot bar comparison of Accuracy and Macro F1 score across Feature Sets.
+    """
+    fig, ax = plt.subplots(figsize=(11, 6), dpi=300)
+    x = np.arange(len(ablation_df))
+    width = 0.35
+    
+    rects1 = ax.bar(x - width/2, ablation_df["Accuracy"] * 100, width, label="Accuracy (%)", color="#2b5c8f", edgecolor="black", alpha=0.85)
+    rects2 = ax.bar(x + width/2, ablation_df["Macro F1"] * 100, width, label="Macro F1-Score (%)", color="#d95f02", edgecolor="black", alpha=0.85)
+    
+    for rect in list(rects1) + list(rects2):
+        height = rect.get_height()
+        ax.annotate(f"{height:.1f}%",
+                    xy=(rect.get_x() + rect.get_width() / 2, height),
+                    xytext=(0, 3),
+                    textcoords="offset points",
+                    ha="center", va="bottom", fontsize=9, fontweight="bold")
+        
+    ax.set_ylabel("Score (%)", fontsize=11, fontweight="bold")
+    ax.set_title("Ablation Study: Model Performance Across Different Feature Sets", fontsize=13, fontweight="bold", pad=12)
+    ax.set_xticks(x)
+    ax.set_xticklabels(ablation_df["Feature Set"], rotation=15, ha="right", fontsize=10)
+    ax.set_ylim(0, 115)
+    ax.legend(loc="upper right")
+    plt.tight_layout()
+    
+    out_file = save_path or (config.FIGURES_DIR / "08_feature_set_ablation.png")
+    plt.savefig(out_file, dpi=300, bbox_inches="tight")
+    plt.close()
+    print(f"Saved: {out_file}")
+
+
+def plot_temporal_vs_random_split(comparison_df: pd.DataFrame, save_path: Optional[str] = None) -> None:
+    """
+    Plot bar chart comparing Temporal Split vs. Stratified Random Split to illustrate leakage.
+    """
+    fig, ax = plt.subplots(figsize=(9, 5), dpi=300)
+    x = np.arange(len(comparison_df))
+    width = 0.35
+    
+    rects1 = ax.bar(x - width/2, comparison_df["Accuracy"] * 100, width, label="Accuracy (%)", color="#1b9e77", edgecolor="black", alpha=0.85)
+    rects2 = ax.bar(x + width/2, comparison_df["Macro F1"] * 100, width, label="Macro F1-Score (%)", color="#7570b3", edgecolor="black", alpha=0.85)
+    
+    for rect in list(rects1) + list(rects2):
+        height = rect.get_height()
+        ax.annotate(f"{height:.1f}%",
+                    xy=(rect.get_x() + rect.get_width() / 2, height),
+                    xytext=(0, 3),
+                    textcoords="offset points",
+                    ha="center", va="bottom", fontsize=9, fontweight="bold")
+        
+    ax.set_ylabel("Score (%)", fontsize=11, fontweight="bold")
+    ax.set_title("Data Splitting Impact: Temporal Split vs. Random Stratified Split", fontsize=13, fontweight="bold", pad=12)
+    ax.set_xticks(x)
+    ax.set_xticklabels(comparison_df["Split Strategy"], fontsize=10)
+    ax.set_ylim(0, 115)
+    ax.legend(loc="lower right")
+    plt.tight_layout()
+    
+    out_file = save_path or (config.FIGURES_DIR / "09_temporal_vs_random_split.png")
     plt.savefig(out_file, dpi=300, bbox_inches="tight")
     plt.close()
     print(f"Saved: {out_file}")
@@ -225,7 +354,3 @@ def generate_all_eda_figures(df: Optional[pd.DataFrame] = None) -> None:
     plot_correlation_heatmap(df)
     plot_temporal_trend(df)
     print("All 5 EDA figures successfully generated!")
-
-
-if __name__ == "__main__":
-    generate_all_eda_figures()

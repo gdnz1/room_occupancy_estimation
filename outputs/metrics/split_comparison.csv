@@ -1,0 +1,3 @@
+Split Strategy,Accuracy,Macro F1,Weighted F1,Notes
+Chronological (Temporal 80/20),0.9506,0.7685,0.9466,Realistic temporal generalization (past -> future)
+Stratified Random (Random 80/20),0.9956,0.9837,0.9956,Artificially inflated due to temporal leakage between 30s steps

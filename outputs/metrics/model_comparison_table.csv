@@ -1,0 +1,9 @@
+Model,Feature Set,Train Acc,Accuracy,Macro Prec,Macro Recall,Macro F1,Weighted F1
+Decision Tree (depth=5),Feature Set A (All Sensors),0.9956,0.9506,0.8842,0.7319,0.7685,0.9466
+Decision Tree (depth=7),Feature Set A (All Sensors),0.9984,0.9506,0.8842,0.7319,0.7685,0.9466
+Decision Tree (depth=10),Feature Set A (All Sensors),0.9996,0.9506,0.8842,0.7319,0.7685,0.9466
+Decision Tree (depth=3),Feature Set A (All Sensors),0.9688,0.9205,0.8324,0.6104,0.6785,0.9094
+Logistic Regression,Feature Set A (All Sensors),0.9962,0.9526,0.8859,0.6681,0.6158,0.9363
+KNN (k=3),Feature Set A (All Sensors),0.9965,0.9348,0.559,0.4634,0.4685,0.9308
+KNN (k=5),Feature Set A (All Sensors),0.9953,0.9265,0.5149,0.4361,0.4418,0.9244
+KNN (k=7),Feature Set A (All Sensors),0.9936,0.9141,0.4477,0.4043,0.4183,0.9152
