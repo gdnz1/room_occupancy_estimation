@@ -132,6 +132,8 @@ Araştırmamızda üç temel ve açıklanabilir algoritmayı değerlendirdik:
 
 Tüm modeller Feature Set A (16 sensör) üzerinde eğitilmiş ve kronolojik test setinde değerlendirilmiştir:
 
+![Model Performans Karşılaştırma Tablosu](outputs/figures/table_01_model_comparison.png)
+
 | Model | Test Accuracy | Macro Precision | Macro Recall | Macro F1 | Weighted F1 |
 | :--- | :---: | :---: | :---: | :---: | :---: |
 | **Decision Tree ($\text{depth}=5$)** | **95.06%** | **88.42%** | **73.19%** | **76.85%** | **94.66%** |
@@ -153,6 +155,8 @@ Tüm modeller Feature Set A (16 sensör) üzerinde eğitilmiş ve kronolojik tes
 ## 9. Feature Set Ablation Deneyi (Sensörlerin Katkısı)
 
 Sensör sayısını azaltmanın ve özet öznitelik kullanmanın etkisini ölçmek için 5 farklı veri seti kombinasyonunu Decision Tree ile test ettik:
+
+![Feature Set Ablation Tablosu](outputs/figures/table_02_feature_ablation.png)
 
 ![Feature Set Ablation](outputs/figures/08_feature_set_ablation.png)
 
